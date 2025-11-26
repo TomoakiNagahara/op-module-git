@@ -97,11 +97,11 @@ done
 
 if [ $FOUND -eq 1 ]; then
     echo ""
-    echo -e "${RED}${BOLD}❌ Commit aborted due to forbidden code patterns.${RESET}"
+    echo -e "${RED}${BOLD} Commit aborted due to forbidden code patterns.${RESET}"
     echo ""
     echo -e "${BLUE}Recommended replacements:${RESET}"
-    echo -e "  var_dump(), print_r(), dd(), die(), exit() → D()"
-    echo -e "  \$_GET, \$_POST, \$_REQUEST, \$_COOKIE, \$_SESSION, \$_SERVER → OP()->Request()"
+    echo -e "  var_dump(), print_r() --> D()"
+    echo -e "  \$_GET, \$_POST, \$_REQUEST --> OP()->Request()"
     exit 1
 fi
 
