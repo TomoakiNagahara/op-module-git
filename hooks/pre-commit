@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# ANSI colors
+RED="\033[31m"
+YELLOW="\033[33m"
+BLUE="\033[36m"
+BOLD="\033[1m"
+RESET="\033[0m"
+
 # Calculate git root directory
 GIT_ROOT=`git rev-parse --show-superproject-working-tree`
 if [ -z "$GIT_ROOT" ]; then
@@ -57,10 +64,10 @@ for FILE in $FILES; do
                 if echo "$add_line" | grep -E "$WORD" > /dev/null; then
                     FOUND=1
                     echo ""
-                    echo "Error: Forbidden pattern detected: '$WORD'"
-                    echo "----- Found in staged changes ($FILE) -----"
-                    printf "%d: + %s\n" "$current_line" "$add_line"
-                    echo "-------------------------------------------"
+                    echo -e "${RED}${BOLD}Error: Forbidden pattern detected: '${WORD}'${RESET}"
+                    echo -e "${YELLOW}----- Found in staged changes (${FILE}) -----${RESET}"
+                    echo -e "${BLUE}${current_line}${RESET}: + ${add_line}"
+                    echo -e "${YELLOW}-------------------------------------------${RESET}"
                 fi
             done
 
@@ -73,11 +80,11 @@ done
 
 if [ $FOUND -eq 1 ]; then
     echo ""
-    echo "❌ Commit aborted due to forbidden code patterns."
+    echo -e "${RED}${BOLD}❌ Commit aborted due to forbidden code patterns.${RESET}"
     echo ""
-    echo "Recommended replacements:"
-    echo "  var_dump(), print_r(), dd(), die(), exit() → D()"
-    echo "  \$_GET, \$_POST, \$_REQUEST, \$_COOKIE, \$_SESSION, \$_SERVER → OP()->Request()"
+    echo -e "${BLUE}Recommended replacements:${RESET}"
+    echo -e "  var_dump(), print_r(), dd(), die(), exit() → D()"
+    echo -e "  \$_GET, \$_POST, \$_REQUEST, \$_COOKIE, \$_SESSION, \$_SERVER → OP()->Request()"
     exit 1
 fi
 
