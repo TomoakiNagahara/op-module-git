@@ -45,6 +45,7 @@ FOUND=0
 for FILE in $FILES; do
     DIFF=$(git diff --cached -U0 -- "$FILE")
     current_line=0
+    current_hunk=""
 
     while IFS= read -r line; do
 
@@ -52,7 +53,15 @@ for FILE in $FILES; do
         if [[ "$line" =~ ^@@ ]]; then
             # Extract the starting line number on the "+" (new file) side
             current_line=$(echo "$line" | sed -E 's/^@@ .* \+([0-9]+).*/\1/')
+
+            # Reset hunk buffer
+            current_hunk="$line"$'\n'
             continue
+        fi
+
+        # Inside hunk: record all lines (+, -, space)
+        if [[ "$line" =~ ^[\ +-] ]]; then
+            current_hunk+="$line"$'\n'
         fi
 
         # Only check added lines (starting with + but not +++)
@@ -63,9 +72,17 @@ for FILE in $FILES; do
             for WORD in "${DENY_WORDS[@]}"; do
                 if echo "$add_line" | grep -E "$WORD" > /dev/null; then
                     FOUND=1
+
                     echo ""
                     echo -e "${RED}${BOLD}Error: Forbidden pattern detected: '${WORD}'${RESET}"
                     echo -e "${YELLOW}----- Found in staged changes (${FILE}) -----${RESET}"
+
+                    # Show entire diff hunk
+                    echo -e "${YELLOW}----- Diff Hunk -----${RESET}"
+                    echo -e "$current_hunk"
+                    echo -e "${YELLOW}----------------------${RESET}"
+
+                    # Show exact offending line (your preferred format)
                     echo -e "${BLUE}${current_line}${RESET}: + ${add_line}"
                     echo -e "${YELLOW}-------------------------------------------${RESET}"
                 fi
