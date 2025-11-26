@@ -15,19 +15,36 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Get target files
+# Get target files (.php .phtml .html)
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(php|phtml|html)$')
 
 # Deny patterns
-PATTERNS='(var_dump|print_r|\$_GET|\$_POST)'
+PATTERNS='(var_dump|print_r|dd|die|exit|\$_GET|\$_POST|\$_REQUEST|\$_COOKIE|\$_SESSION|\$_SERVER)'
+
+FOUND=0
 
 # Loop files
 for FILE in $FILES; do
-    # Check file at patterns
-    if git show ":$FILE" | grep -E "$PATTERNS" > /dev/null; then
-        echo "$FILE: $PATTERNS"
-        echo "var_dump() or print_r() --> D()"
-        echo "$_GET or $_POST --> OP()->Request()"
-        exit 1
+    # grep with line number
+    MATCHES=$(git show ":$FILE" | grep -nE "$PATTERNS")
+
+    if [ -n "$MATCHES" ]; then
+        FOUND=1
+        echo ""
+        echo "🚫 Forbidden patterns found in: $FILE"
+        echo "---------------------------------------"
+        echo "$MATCHES"
+        echo ""
     fi
 done
+
+if [ $FOUND -eq 1 ]; then
+    echo "❌ Commit aborted due to forbidden patterns."
+    echo ""
+    echo "Use replacements:"
+    echo "  var_dump(), print_r(), dd(), die(), exit() → D()"
+    echo "  \$_GET, \$_POST, \$_REQUEST, \$_COOKIE, \$_SESSION, \$_SERVER → OP()->Request()"
+    exit 1
+fi
+
+exit 0
