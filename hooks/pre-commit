@@ -1,47 +1,81 @@
 #!/usr/bin/env bash
 
-# Calc git root
+# Calculate git root directory
 GIT_ROOT=`git rev-parse --show-superproject-working-tree`
 if [ -z "$GIT_ROOT" ]; then
-	GIT_ROOT=`git rev-parse --show-toplevel`
+    GIT_ROOT=`git rev-parse --show-toplevel`
 fi
 
-# hook-the-hooks
+# Run hook-the-hooks
 HOOK_NAME=`basename $0`
 ${GIT_ROOT}/asset/git/hooks/hook-the-hooks.sh ${HOOK_NAME}
 
-# Check if status
+# Stop if hook-the-hooks returned error
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Get target files (.php .phtml .html)
+# Target file extensions
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(php|phtml|html)$')
 
-# Deny patterns
-PATTERNS='(var_dump|print_r|dd|die|exit|\$_GET|\$_POST|\$_REQUEST|\$_COOKIE|\$_SESSION|\$_SERVER)'
+# Forbidden patterns (double backslashes needed for proper escaping)
+DENY_WORDS=(
+    "var_dump"
+    "print_r"
+    "dd"
+    "die"
+    "exit"
+    "\\\$_GET"
+    "\\\$_POST"
+    "\\\$_REQUEST"
+    "\\\$_COOKIE"
+    "\\\$_SESSION"
+    "\\\$_SERVER"
+)
 
 FOUND=0
 
-# Loop files
 for FILE in $FILES; do
-    # grep with line number
-    MATCHES=$(git show ":$FILE" | grep -nE "$PATTERNS")
+    DIFF=$(git diff --cached -U0 -- "$FILE")
+    current_line=0
 
-    if [ -n "$MATCHES" ]; then
-        FOUND=1
-        echo ""
-        echo "🚫 Forbidden patterns found in: $FILE"
-        echo "---------------------------------------"
-        echo "$MATCHES"
-        echo ""
-    fi
+    while IFS= read -r line; do
+
+        # Detect hunk header (@@ -old,new +old,new @@)
+        if [[ "$line" =~ ^@@ ]]; then
+            # Extract the starting line number on the "+" (new file) side
+            current_line=$(echo "$line" | sed -E 's/^@@ .* \+([0-9]+).*/\1/')
+            continue
+        fi
+
+        # Only check added lines (starting with + but not +++)
+        if [[ "$line" =~ ^\+[^+] ]]; then
+            add_line="${line:1}"
+
+            # Check all forbidden patterns
+            for WORD in "${DENY_WORDS[@]}"; do
+                if echo "$add_line" | grep -E "$WORD" > /dev/null; then
+                    FOUND=1
+                    echo ""
+                    echo "Error: Forbidden pattern detected: '$WORD'"
+                    echo "----- Found in staged changes ($FILE) -----"
+                    printf "%d: + %s\n" "$current_line" "$add_line"
+                    echo "-------------------------------------------"
+                fi
+            done
+
+            # Move to next line number
+            current_line=$((current_line + 1))
+        fi
+
+    done <<< "$DIFF"
 done
 
 if [ $FOUND -eq 1 ]; then
-    echo "❌ Commit aborted due to forbidden patterns."
     echo ""
-    echo "Use replacements:"
+    echo "❌ Commit aborted due to forbidden code patterns."
+    echo ""
+    echo "Recommended replacements:"
     echo "  var_dump(), print_r(), dd(), die(), exit() → D()"
     echo "  \$_GET, \$_POST, \$_REQUEST, \$_COOKIE, \$_SESSION, \$_SERVER → OP()->Request()"
     exit 1
