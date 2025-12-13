@@ -65,14 +65,14 @@ if(!$name = OP()->Request('name') ){
 //	...
 if(!$branch = OP()->Request('branch') ){
 	//	...
-	echo "\nYou can specify the branch name (Not specify is empty return): ";
+	echo "\nYou can specify the branch name (default: none): ";
 	$branch = trim(fgets(STDIN));
 }
 
 //	...
 if(!$force = OP()->Request('force') ){
 	//	...
-	echo "\nYou can specify the force clone (Not specify is empty return): ";
+	echo "\nYou can specify the force clone (default: none): ";
 	$force = trim(fgets(STDIN)) ? '--force': null;
 }
 
